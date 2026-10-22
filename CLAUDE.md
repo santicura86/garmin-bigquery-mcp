@@ -96,7 +96,7 @@ garmin-pipeline/
 ```
 
 Fase **P1 (repo desde la plantilla):**
-1. Crear el repo **privado** del HUMANO a partir de esta plantilla: `gh repo create <GH_USER>/<REPO> --private --template <PLANTILLA> --clone` (o "Use this template" en GitHub), y trabajar dentro de ese clon.
+1. Crear el repo **privado** del HUMANO a partir de esta plantilla: `gh repo create <GH_USER>/<REPO> --private --template santicura86/garmin-bigquery-mcp --clone` (o "Use this template" en GitHub), y trabajar dentro de ese clon.
 2. `python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt`.
 3. `cp project.env.example project.env` y completarlo. `GITHUB_REPO_ID` sale de `gh api repos/<GH_USER>/<REPO> --jq .id`.
 4. Si `<TZ>` no es Europe/Madrid o los horarios son otros, ajustar los crons y los offsets del `gate` en `daily-sync.yml` (ver §8).

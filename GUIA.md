@@ -93,8 +93,8 @@ Claude Code te va a ir pidiendo cada uno en el momento justo. Esta lista es para
 3. **Iniciá sesión en Google Cloud:** `gcloud auth login`
 4. **Creá un proyecto en Google Cloud** (por ejemplo `garmin-data-tunombre`) desde console.cloud.google.com, y **vinculale la facturación** (Billing → Link a billing account).
 5. **Creá una alerta de presupuesto** de 5 €/mes (Billing → Budgets & alerts).
-6. **Creá tu propio repo privado desde la plantilla.** En la página de GitHub de la plantilla, entrá en **Use this template** → **Create a new repository** (marcalo **Private**). Después clonalo en tu Mac y abrí Claude Code en esa carpeta.
-   - Si no ves "Use this template", pedile a Claude Code que lo haga por vos con `gh repo create … --template …`. Para eso necesita el link de la plantilla.
+6. **Creá tu propio repo privado desde la plantilla.** Abrí https://github.com/santicura86/garmin-bigquery-mcp y entrá en **Use this template** → **Create a new repository** (marcalo **Private**). Después clonalo en tu Mac y abrí Claude Code en esa carpeta.
+   - Si no ves "Use this template", pedile a Claude Code que lo haga por vos con `gh repo create … --template …`. El link de la plantilla es `santicura86/garmin-bigquery-mcp`.
 7. Pegale a Claude Code:
    > Lee CLAUDE.md. Es la especificación de mi pipeline Garmin → BigQuery → MCP, y el código de este repo ya la implementa. Empieza por la fase P0, sigue las fases en orden, detente en cada [STOP: HUMANO] y pídeme permiso antes de cualquier login, de crear recursos en la nube o de tocar credenciales. Dame un resumen corto al final de cada fase.
 
