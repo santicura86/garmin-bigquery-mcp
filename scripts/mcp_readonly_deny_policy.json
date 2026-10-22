@@ -1,0 +1,15 @@
+{
+  "displayName": "MCP read-only",
+  "rules": [
+    {
+      "denyRule": {
+        "deniedPrincipals": ["principalSet://goog/public:all"],
+        "deniedPermissions": ["mcp.googleapis.com/tools.call"],
+        "denialCondition": {
+          "title": "Deny read-write MCP tools",
+          "expression": "api.getAttribute('mcp.googleapis.com/tool.isReadOnly', false) == false"
+        }
+      }
+    }
+  ]
+}

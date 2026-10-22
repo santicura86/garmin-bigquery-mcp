@@ -1,0 +1,112 @@
+name: Daily Garmin sync
+
+# Three syncs a day at local time (repo variable SYNC_TZ): 08:30, 15:07, 21:07.
+# GitHub cron is UTC-only, so each sync has a summer and a winter trigger; the `gate` job runs
+# only the one matching the timezone's current UTC offset.
+# The crons below are for Europe/Madrid (CEST = UTC+2, CET = UTC+1). For another timezone,
+# change the crons AND the offsets in the gate's `case` block together.
+# :07 instead of :00 because GitHub delays on-the-hour schedules the most.
+on:
+  schedule:
+    - cron: "30 6 * * *"   # 08:30 CEST
+    - cron: "30 7 * * *"   # 08:30 CET
+    - cron: "7 13 * * *"   # 15:07 CEST
+    - cron: "7 14 * * *"   # 15:07 CET
+    - cron: "7 19 * * *"   # 21:07 CEST
+    - cron: "7 20 * * *"   # 21:07 CET
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Number of days to re-sync"
+        required: false
+        default: "3"
+
+permissions: {}
+
+jobs:
+  # Decide whether this trigger is the right one for the current season (manual runs always pass).
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          SYNC_TZ: ${{ vars.SYNC_TZ || 'Europe/Madrid' }}
+        run: |
+          if [ "$EVENT" != "schedule" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          case "$SCHEDULE" in
+            "30 6 * * *"|"7 13 * * *"|"7 19 * * *") want="+0200" ;;
+            "30 7 * * *"|"7 14 * * *"|"7 20 * * *") want="+0100" ;;
+            *) echo "Unknown schedule: $SCHEDULE"; exit 1 ;;
+          esac
+          now=$(TZ="$SYNC_TZ" date +%z)
+          echo "$SYNC_TZ offset now $now, trigger '$SCHEDULE' is for $want"
+          if [ "$now" = "$want" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; else echo "run=false" >> "$GITHUB_OUTPUT"; fi
+
+  sync:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    # One sync at a time: runs write refreshed Garmin tokens back to Secret Manager.
+    concurrency:
+      group: garmin-sync
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write  # OIDC token for Workload Identity Federation
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+    steps:
+      - name: Set Garmin token dir
+        run: echo "GARMIN_TOKEN_DIR=$RUNNER_TEMP/garmin-tokens" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: gcp-auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install requirements
+        run: pip install -r requirements.txt
+
+      - name: Sync
+        env:
+          DAYS: ${{ inputs.days || '3' }}
+        run: python garmin_sync.py sync --days "$DAYS"
+
+      - name: Delete credential files
+        if: always()
+        env:
+          CREDS_FILE: ${{ steps.gcp-auth.outputs.credentials_file_path }}
+        run: |
+          rm -rf "$GARMIN_TOKEN_DIR"
+          if [ -n "$CREDS_FILE" ]; then rm -f "$CREDS_FILE"; fi
+
+  # GitHub disables scheduled workflows after 60 days without repo activity.
+  # Re-enabling the workflow via the API resets that timer without any commits.
+  keepalive:
+    needs: gate
+    if: github.event_name == 'schedule' && needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Re-enable workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/daily-sync.yml/enable"

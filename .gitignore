@@ -1,0 +1,17 @@
+# Credentials — never commit
+tokens/
+.garminconnect/
+garmin_tokens.json
+*sa-key*.json
+*credentials*.json
+gha-creds-*.json
+application_default_credentials.json
+.env
+.env.*
+
+# Local state
+state/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
